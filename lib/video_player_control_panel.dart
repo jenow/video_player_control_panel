@@ -12,7 +12,6 @@ import 'package:sprintf/sprintf.dart';
 
 import 'package:video_player/video_player.dart';
 
-
 // ignore: must_be_immutable
 class JkVideoControlPanel extends StatefulWidget {
   final VideoPlayerController controller;
@@ -22,6 +21,7 @@ class JkVideoControlPanel extends StatefulWidget {
   final VoidCallback? onPrevClicked;
   final VoidCallback? onNextClicked;
   final VoidCallback? onPlayEnded; // won't be called if controller set lopping = true
+  final double bottomPosition;
   late bool _isFullscreen;
   ValueNotifier<bool>? _showClosedCaptions;
 
@@ -29,7 +29,8 @@ class JkVideoControlPanel extends StatefulWidget {
   // default value will restore to system default orientation
   final List<DeviceOrientation> restoreOrientations;
 
-  JkVideoControlPanel(this.controller, {
+  JkVideoControlPanel(
+    this.controller, {
     super.key,
     this.showFullscreenButton = true,
     this.showClosedCaptionButton = true,
@@ -37,18 +38,21 @@ class JkVideoControlPanel extends StatefulWidget {
     this.onPrevClicked,
     this.onNextClicked,
     this.onPlayEnded,
+    this.bottomPosition = 0.0,
     this.restoreOrientations = const [],
-    }) : _isFullscreen = false;
+  }) : _isFullscreen = false;
 
-  static JkVideoControlPanel _fullscreen(VideoPlayerController controller, {
-      Key? key,
-      required ValueNotifier<bool>? showClosedCaptions,
-      required bool showVolumeButton,
-      VoidCallback? onPrevClicked,
-      VoidCallback? onNextClicked,
-      //this.onPlayEnded, // don't pass to fullscreen widget
-    }) {
-    var c = JkVideoControlPanel(controller,
+  static JkVideoControlPanel _fullscreen(
+    VideoPlayerController controller, {
+    Key? key,
+    required ValueNotifier<bool>? showClosedCaptions,
+    required bool showVolumeButton,
+    VoidCallback? onPrevClicked,
+    VoidCallback? onNextClicked,
+    //this.onPlayEnded, // don't pass to fullscreen widget
+  }) {
+    var c = JkVideoControlPanel(
+      controller,
       key: key,
       showVolumeButton: showVolumeButton,
       onPrevClicked: onPrevClicked,
@@ -64,7 +68,6 @@ class JkVideoControlPanel extends StatefulWidget {
 }
 
 class _JkVideoControlPanelState extends State<JkVideoControlPanel> with TickerProviderStateMixin {
-
   final bool isDesktop = kIsWeb || Platform.isWindows;
   final focusNode = FocusNode();
 
@@ -139,9 +142,7 @@ class _JkVideoControlPanelState extends State<JkVideoControlPanel> with TickerPr
       onAspectRatioChanged();
     }
 
-    if (playerValue.isInitialized
-          && playerValue.duration.inMilliseconds > 0
-          && playerValue.position.compareTo(playerValue.duration) >= 0) {
+    if (playerValue.isInitialized && playerValue.duration.inMilliseconds > 0 && playerValue.position.compareTo(playerValue.duration) >= 0) {
       if (!isPlayEnded) {
         isPlayEnded = true;
         playing.value = false;
@@ -179,23 +180,23 @@ class _JkVideoControlPanelState extends State<JkVideoControlPanel> with TickerPr
   void doClickFullScreenButton(BuildContext context) {
     if (!widget._isFullscreen) {
       isFullscreenVisible = true;
-      Navigator.of(context).push(MaterialPageRoute(
-        builder: (context) {
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (context) {
           // NOTE: when setState() called in didUpdateWidget() in non-fullscreen widget, this will be called here... why ? but it sounds good here!
           return Material(
             child: ValueListenableBuilder<int>(
               valueListenable: controllerValue,
               builder: ((context, value, child) {
-                return JkVideoControlPanel._fullscreen(widget.controller,
+                return JkVideoControlPanel._fullscreen(
+                  widget.controller,
                   key: widget.key,
                   showClosedCaptions: showClosedCaptions,
                   showVolumeButton: widget.showVolumeButton,
                   onPrevClicked: widget.onPrevClicked,
                   onNextClicked: widget.onNextClicked,
                 );
-
               }),
-          ),
+            ),
           );
         }),
       ).then((value) {
@@ -215,7 +216,8 @@ class _JkVideoControlPanelState extends State<JkVideoControlPanel> with TickerPr
     double min = math.min(size.width, size.height);
     if (kIsWeb || Platform.isWindows) {
       iconSize = min / 30;
-    } else { // android / iOS
+    } else {
+      // android / iOS
       iconSize = min / 15;
     }
 
@@ -241,7 +243,7 @@ class _JkVideoControlPanelState extends State<JkVideoControlPanel> with TickerPr
       onPlayerValueChanged();
       setState(() {});
       Future.delayed(Duration.zero).then((value) {
-        controllerValue.value ++; //notify fullscreen widget to rebuild, async delay is needed
+        controllerValue.value++; //notify fullscreen widget to rebuild, async delay is needed
       });
     }
   }
@@ -338,29 +340,25 @@ class _JkVideoControlPanelState extends State<JkVideoControlPanel> with TickerPr
 
   Widget createPlayPauseButton(bool isCircle, double size) {
     return ValueListenableBuilder<bool>(
-      valueListenable: playing,
-      builder: (context, value, child) {
-        return IconButton(
-          iconSize: size,
-          icon: Icon(
-            isCircle ? (value ? Icons.pause_circle : Icons.play_circle)
-                     : (value ? Icons.pause : Icons.play_arrow),
-            color: Colors.white
-          ),
-          onPressed: () {
-            if (isMouseMode) {
-              togglePlayPause();
-            } else {
-              if (isPanelShown()) {
+        valueListenable: playing,
+        builder: (context, value, child) {
+          return IconButton(
+            iconSize: size,
+            icon: Icon(isCircle ? (value ? Icons.pause_circle : Icons.play_circle) : (value ? Icons.pause : Icons.play_arrow), color: Colors.white),
+            onPressed: () {
+              if (isMouseMode) {
                 togglePlayPause();
-                showPanel();
               } else {
-                togglePanel();
+                if (isPanelShown()) {
+                  togglePlayPause();
+                  showPanel();
+                } else {
+                  togglePanel();
+                }
               }
-            }
-          },
-        );
-    });
+            },
+          );
+        });
   }
 
   @override
@@ -398,12 +396,8 @@ class _JkVideoControlPanelState extends State<JkVideoControlPanel> with TickerPr
     );
 
     seekBar = SliderTheme(
-      data: const SliderThemeData(
-          thumbColor: Colors.white,
-          activeTrackColor: Colors.white,
-          inactiveTrackColor: Colors.white70,
-          trackHeight: 1,
-          thumbShape: RoundSliderThumbShape(enabledThumbRadius: 7)),
+      data:
+          const SliderThemeData(thumbColor: Colors.white, activeTrackColor: Colors.white, inactiveTrackColor: Colors.white70, trackHeight: 1, thumbShape: RoundSliderThumbShape(enabledThumbRadius: 7)),
       child: SizedBox(height: iconSize * 0.7, child: seekBar),
     );
 
@@ -419,22 +413,20 @@ class _JkVideoControlPanelState extends State<JkVideoControlPanel> with TickerPr
       builder: (context, value, child) {
         if (!value) return const SizedBox.shrink();
         return ValueListenableBuilder<bool>(
-          valueListenable: showClosedCaptions,
-          builder: (context, value, child) {
-            return IconButton(
-              color: Colors.white,
-              iconSize: iconSize,
-              icon: Icon(value ? Icons.subtitles : Icons.subtitles_off_outlined),
-              onPressed: () {
-                showClosedCaptions.value = !showClosedCaptions.value;
-                showPanel();
-              },
-            );
-          }
-        );
+            valueListenable: showClosedCaptions,
+            builder: (context, value, child) {
+              return IconButton(
+                color: Colors.white,
+                iconSize: iconSize,
+                icon: Icon(value ? Icons.subtitles : Icons.subtitles_off_outlined),
+                onPressed: () {
+                  showClosedCaptions.value = !showClosedCaptions.value;
+                  showPanel();
+                },
+              );
+            });
       },
     );
-
 
     Widget volumePanel = MouseRegion(
       onEnter: (_) {
@@ -451,11 +443,7 @@ class _JkVideoControlPanelState extends State<JkVideoControlPanel> with TickerPr
           child: FadeTransition(
             opacity: volumeAnimation,
             child: Container(
-              decoration: BoxDecoration(
-                color: Colors.black54,
-                border: Border.all(color: Colors.transparent),
-                borderRadius: const BorderRadius.all(Radius.circular(100))
-              ),
+              decoration: BoxDecoration(color: Colors.black54, border: Border.all(color: Colors.transparent), borderRadius: const BorderRadius.all(Radius.circular(100))),
             ),
           ),
         ),
@@ -467,67 +455,71 @@ class _JkVideoControlPanelState extends State<JkVideoControlPanel> with TickerPr
               valueListenable: volumeValue,
               builder: (context, value, child) {
                 return Slider(
-                  min: 0,
-                  max: 100,
-                  value: value * 100,
-                  divisions: 100,
-                  onChangeStart: (_) => isDraggingVolumeBar = true,
-                  onChangeEnd: (_) {
-                    isDraggingVolumeBar = false;
-                    if (!isMouseInVolumeBar) volumeAnimController.reverse();
-                  },
-                  onChanged: (value) {
-                    widget.controller.setVolume(value / 100);
-                    showPanel(); // keep panel visible during dragging volume bar
-                  }
-                );
+                    min: 0,
+                    max: 100,
+                    value: value * 100,
+                    divisions: 100,
+                    onChangeStart: (_) => isDraggingVolumeBar = true,
+                    onChangeEnd: (_) {
+                      isDraggingVolumeBar = false;
+                      if (!isMouseInVolumeBar) volumeAnimController.reverse();
+                    },
+                    onChanged: (value) {
+                      widget.controller.setVolume(value / 100);
+                      showPanel(); // keep panel visible during dragging volume bar
+                    });
               },
             ),
           ),
           ValueListenableBuilder<double>(
-              valueListenable: volumeValue,
-              builder: (context, value, child) {
-                bool isMute = value <= 0;
-                return IconButton(
-                  color: isMute ? Colors.red : Colors.white,
-                  iconSize: iconSize,
-                  icon: Icon(isMute ? Icons.volume_off : Icons.volume_up),
-                  onPressed: () => toggleVolumeMute(),
-                );
-              },
+            valueListenable: volumeValue,
+            builder: (context, value, child) {
+              bool isMute = value <= 0;
+              return IconButton(
+                color: isMute ? Colors.red : Colors.white,
+                iconSize: iconSize,
+                icon: Icon(isMute ? Icons.volume_off : Icons.volume_up),
+                onPressed: () => toggleVolumeMute(),
+              );
+            },
           ),
         ]),
       ]),
     );
 
-    Widget? bottomPrevButton = (isDesktop && widget.onPrevClicked != null) ? IconButton(
-          iconSize: iconSize,
-          color: Colors.white,
-          icon: const Icon(Icons.skip_previous),
-          onPressed: widget.onPrevClicked,
-    ) : null;
+    Widget? bottomPrevButton = (isDesktop && widget.onPrevClicked != null)
+        ? IconButton(
+            iconSize: iconSize,
+            color: Colors.white,
+            icon: const Icon(Icons.skip_previous),
+            onPressed: widget.onPrevClicked,
+          )
+        : null;
 
-    Widget? bottomNextButton = (isDesktop && widget.onNextClicked != null) ? IconButton(
-          iconSize: iconSize,
-          color: Colors.white,
-          icon: const Icon(Icons.skip_next),
-          onPressed: widget.onNextClicked,
-    ) : null;
+    Widget? bottomNextButton = (isDesktop && widget.onNextClicked != null)
+        ? IconButton(
+            iconSize: iconSize,
+            color: Colors.white,
+            icon: const Icon(Icons.skip_next),
+            onPressed: widget.onNextClicked,
+          )
+        : null;
 
     Widget bottomPanel = Column(children: [
-      Row(children: [
-        if (isDesktop) createPlayPauseButton(false, iconSize),
-        if (isDesktop && widget.onPrevClicked != null) bottomPrevButton!,
-        if (isDesktop && widget.onNextClicked != null) bottomNextButton!,
-        positionText,
-        Text(" / ", style: TextStyle(fontSize: textSize, color: Colors.white)),
-        durationText,
-        const Spacer(),
-        if (isDesktop && widget.showVolumeButton) volumePanel,
-        if (widget.showClosedCaptionButton) closedCaptionButton,
-        if (widget.showFullscreenButton && !kIsWeb) fullscreenButton, //TODO: fullscreen makes video black after exit fullscreen in web environment, so remove it
-      ],),
-
+      Row(
+        children: [
+          if (isDesktop) createPlayPauseButton(false, iconSize),
+          if (isDesktop && widget.onPrevClicked != null) bottomPrevButton!,
+          if (isDesktop && widget.onNextClicked != null) bottomNextButton!,
+          positionText,
+          Text(" / ", style: TextStyle(fontSize: textSize, color: Colors.white)),
+          durationText,
+          const Spacer(),
+          if (isDesktop && widget.showVolumeButton) volumePanel,
+          if (widget.showClosedCaptionButton) closedCaptionButton,
+          if (widget.showFullscreenButton && !kIsWeb) fullscreenButton, //TODO: fullscreen makes video black after exit fullscreen in web environment, so remove it
+        ],
+      ),
       seekBar,
     ]);
 
@@ -535,10 +527,10 @@ class _JkVideoControlPanelState extends State<JkVideoControlPanel> with TickerPr
       padding: EdgeInsets.all(iconSize / 2),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          //colors: !isDesktop ? <Color>[Colors.transparent, Colors.transparent] : <Color>[Colors.transparent, Colors.black87]),
-          colors: <Color>[Colors.transparent, isDesktop ? Colors.black87 : Colors.transparent]),
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            //colors: !isDesktop ? <Color>[Colors.transparent, Colors.transparent] : <Color>[Colors.transparent, Colors.black87]),
+            colors: <Color>[Colors.transparent, isDesktop ? Colors.black87 : Colors.transparent]),
       ),
       child: bottomPanel,
     );
@@ -568,33 +560,46 @@ class _JkVideoControlPanelState extends State<JkVideoControlPanel> with TickerPr
     );
 
     Widget bufferingWidget = ValueListenableBuilder<bool>(
-      valueListenable: buffering,
-      builder: (context, value, child) {
-        if (value) {
-          return Center(
-            child: SizedBox(
-              width: iconSize * 3,
-              height: iconSize * 3,
-              child: const CircularProgressIndicator(),
-            ),
-          );
-        } else {
-          return Container();
-        }
-      }
-    );
+        valueListenable: buffering,
+        builder: (context, value, child) {
+          if (value) {
+            return Center(
+              child: SizedBox(
+                width: iconSize * 3,
+                height: iconSize * 3,
+                child: const CircularProgressIndicator(),
+              ),
+            );
+          } else {
+            return Container();
+          }
+        });
 
     Widget panelWidget = Stack(
       alignment: Alignment.center,
       children: [
         if (!isDesktop) Container(color: Colors.black38), // translucent black background for panel (only mobile)
         gestureWidget,
-        Positioned(left: 0, bottom: 0, right: 0, child: bottomPanel),
+        Positioned(left: 0, bottom: widget.bottomPosition, right: 0, child: bottomPanel),
         if (!isDesktop) Center(child: createPlayPauseButton(true, iconSize * 2.5)),
         if (!isDesktop && widget.onPrevClicked != null)
-          Align(alignment: const FractionalOffset(0.15, 0.5), child: IconButton(onPressed: widget.onPrevClicked, icon: const Icon(Icons.skip_previous), iconSize: iconSize*1.5, color: Colors.white,)),
+          Align(
+              alignment: const FractionalOffset(0.15, 0.5),
+              child: IconButton(
+                onPressed: widget.onPrevClicked,
+                icon: const Icon(Icons.skip_previous),
+                iconSize: iconSize * 1.5,
+                color: Colors.white,
+              )),
         if (!isDesktop && widget.onNextClicked != null)
-          Align(alignment: const FractionalOffset(0.85, 0.5), child: IconButton(onPressed: widget.onNextClicked, icon: const Icon(Icons.skip_next), iconSize: iconSize*1.5, color: Colors.white,)),
+          Align(
+              alignment: const FractionalOffset(0.85, 0.5),
+              child: IconButton(
+                onPressed: widget.onNextClicked,
+                icon: const Icon(Icons.skip_next),
+                iconSize: iconSize * 1.5,
+                color: Colors.white,
+              )),
       ],
     );
 
@@ -605,7 +610,6 @@ class _JkVideoControlPanelState extends State<JkVideoControlPanel> with TickerPr
       builder: (context, value, child) => IgnorePointer(ignoring: !value, child: child),
       child: panelWidget,
     );
-
 
     panelWidget = Stack(children: [
       gestureWidget,
@@ -686,26 +690,25 @@ class _JkVideoControlPanelState extends State<JkVideoControlPanel> with TickerPr
     );
 
     Widget closedCaptionWidget = ValueListenableBuilder<bool>(
-      valueListenable: showClosedCaptions,
-      builder: (context, value, child) {
-        if (!value) return const SizedBox.shrink();
-        return ValueListenableBuilder<String>(
-          valueListenable: currentCaption,
-          builder: (context, value, child) {
-            return LayoutBuilder(builder: (context, constraints) {
-              double textSize = constraints.maxWidth * 0.028;
-              return Align(
-                alignment: Alignment.bottomCenter,
-                child: Container(
-                  margin: EdgeInsets.all(textSize / 2),
-                  child: Text(value, maxLines: 2, textAlign: TextAlign.center, style: TextStyle(fontSize: textSize, color: Colors.white, backgroundColor: Colors.black54)),
-                ),
-              );
-            });
-          },
-        );
-      }
-    );
+        valueListenable: showClosedCaptions,
+        builder: (context, value, child) {
+          if (!value) return const SizedBox.shrink();
+          return ValueListenableBuilder<String>(
+            valueListenable: currentCaption,
+            builder: (context, value, child) {
+              return LayoutBuilder(builder: (context, constraints) {
+                double textSize = constraints.maxWidth * 0.028;
+                return Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Container(
+                    margin: EdgeInsets.all(textSize / 2),
+                    child: Text(value, maxLines: 2, textAlign: TextAlign.center, style: TextStyle(fontSize: textSize, color: Colors.white, backgroundColor: Colors.black54)),
+                  ),
+                );
+              });
+            },
+          );
+        });
 
     Widget videoWidget = ValueListenableBuilder<double>(
       valueListenable: aspectRatio,
@@ -722,7 +725,6 @@ class _JkVideoControlPanelState extends State<JkVideoControlPanel> with TickerPr
       },
     );
 
-
     Widget allWidgets = Stack(
       children: [
         Container(color: Colors.black), // video_player open file need time, so put a black bg here
@@ -735,7 +737,6 @@ class _JkVideoControlPanelState extends State<JkVideoControlPanel> with TickerPr
     return allWidgets;
   }
 }
-
 
 class AlwaysDisabledFocusNode extends FocusNode {
   @override
